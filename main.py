@@ -3,8 +3,8 @@ from pathlib import Path
 import shutil
 from Dataset import Dataset
 
-# dataset_directory = "./zoo-animals/data/test_dataset/"    # 測試用
-dataset_directory = r".\data\src_dataset\test_dataset"
+dataset_directory = r".\data\test_dataset"    # 測試用
+# dataset_directory = r".\data\input_dataset"   # 輸入資料集
 classes = ("Penguin", "Kangaroo", "Rhino", "Jaguar", "Buffalo")
 dataset = Dataset.Dataset_Loader(dataset_dir=dataset_directory, classes=classes)
 
