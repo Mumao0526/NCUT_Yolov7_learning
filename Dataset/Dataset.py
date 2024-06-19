@@ -66,11 +66,11 @@ class Dataset_Loader:
         self.splite_dataset_to_dir(
             dest_images_path, dest_lists_path, subset_names, subset_percentages
         )
-        self.count_dataset(dest_labels_path, subset_names)
+        self.count_dataset(dest_labels_path, subset_names, show_plt=False)
         self.make_data_yaml(dest_dir)
 
         self.show_distribution_of_classes()
-        self.show_16_image_with_label()
+        self.show_16_image_with_marked()
 
     def get_pathslist(self, src_path, extensions):
         """
@@ -98,14 +98,16 @@ class Dataset_Loader:
         print(f"Number of classes: {len(self.classes)}")
         print(f"Classes: {self.classes}")
 
-    def show_distribution_of_classes(self):
+    def show_distribution_of_classes(self, subset_names):
         """
         顯示資料集中各個類別的分佈情況。
         """
+        print("-"*10 + "Show distribution of classes" + "-"*10)  # 進度提示
         counts = [0] * len(self.classes)
         for txt in self.labels_path:
             if txt.exists():  # 檢查標記檔案是否存在
                 with open(str(txt), "r") as file:
+                    # 取得各個類別物件的個數
                     for line in file.readlines():
                         cls = int(line.split(" ")[0])
                         counts[cls] += 1
@@ -122,11 +124,13 @@ class Dataset_Loader:
         plt.ylabel("Count", fontsize=14)
         plt.xticks(rotation=45)
         plt.show()
+        print("-"*10 + "Show end" + "-"*10)  # 進度提示
 
-    def show_16_image_with_label(self):
+    def show_16_image_with_marked(self):
         """
         顯示16張圖片及其標籤。
         """
+        print("-"*10 + "Show images with marked" + "-"*10)  # 進度提示
 
         num_samples = 16  # 顯示的圖片數量
         random_index = [
@@ -189,6 +193,7 @@ class Dataset_Loader:
 
         plt.tight_layout()
         plt.show()
+        print("-"*10 + "Show end" + "-"*10)  # 進度提示
 
     def get_dataset_size(self):
         return len(self.imgs_path)
@@ -293,8 +298,8 @@ class Dataset_Loader:
                 )  # 轉成Yolo的格式
                 out += f"{classes_index} {x} {y} {w} {h}\n"
 
-        with open(str(yolo_file), "w") as txt:
-            txt.write(out.strip())
+        with open(yolo_file, "a") as txt:
+            txt.write(out)
 
     def draw_box(
         self,
@@ -467,8 +472,8 @@ class Dataset_Loader:
             self.imgs_path[index_start] = target_img_path  # 更新圖片路徑
             index_start += 1  # 更新索引值
 
-        with open(f"{dest_lists_dir}/{subset_name}_list.txt", "w") as txt:
-            txt.write(path_list.strip())
+        with open(f"{dest_lists_dir}/{subset_name}_list.txt", "a") as txt:
+            txt.write(path_list)
 
     def standardize_img(self, src_img_path, dest_img_path):
         """
@@ -529,7 +534,7 @@ class Dataset_Loader:
             )
             subset_begin = subset_end
 
-    def count_dataset(self, src_labels_dir, subset_names):
+    def count_dataset(self, src_labels_dir, subset_names, show_plt=True):
         """
         統計指定目錄下各個子目錄（代表不同的子集）中的圖像數量及各類別的數量。
 
@@ -539,7 +544,7 @@ class Dataset_Loader:
         輸出:
         - 打印出每個子集的圖像總數以及每個類別的數量
         """
-        print("Counting dataset ...")  # 進度提示
+        print("-"*10 + "Count dataset" + "-"*10)  # 進度提示
 
         extensions = ["*.txt", "*.TXT"]
         self.labels_path = self.get_pathslist(
@@ -551,10 +556,15 @@ class Dataset_Loader:
         counts = {}  # 初始化一個字典來存放結果
         for txt in self.labels_path:
             # 判斷子集名稱
+            set_name = None
             for subset_name in subset_names:
                 if subset_name in txt.parts:
                     set_name = subset_name
                     break
+
+            if set_name is None:
+                print(f"Warning: Subset name not found in path {txt}")
+                continue
 
             if set_name not in counts:  # 初始化子集的計數
                 counts[set_name] = [0] * (len(self.classes) + 1)
@@ -571,6 +581,20 @@ class Dataset_Loader:
 
         print("set: ", self.classes)  # 打印標題
         print(counts)  # 打印統計結果
+
+        if show_plt:
+            # 以plt.bar()繪製長條圖
+            for set_name, numbers in counts.items():
+                plt.figure(figsize=(10, 5))
+                categories = [f"{cls}" for i, cls in enumerate(self.classes, 1) if i > 0]
+                values = numbers[1:]  # Skip the total count
+                sns.barplot(x=categories, y=values, hue=categories, alpha=0.8, palette="rocket", legend=False)
+                plt.title(f"Data distribution in {str(set_name).upper()}")
+                plt.ylabel("Counts")
+                plt.xlabel("Classes")
+                plt.show()
+
+        print("-"*10 + "Count end" + "-"*10)  # 進度提示
 
     def make_data_yaml(self, dest_data_dir: str):
         """

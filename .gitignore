@@ -163,3 +163,7 @@ cython_debug/
 
 # Data Files
 data/
+temp_formu/
+
+# Models Files
+*.pt
