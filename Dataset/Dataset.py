@@ -70,7 +70,7 @@ class Dataset_Loader:
         self.make_data_yaml(dest_dir)
 
         self.show_distribution_of_classes()
-        self.show_16_image_with_marked()
+        self.show_image_with_marked()
 
     def get_pathslist(self, src_path, extensions):
         """
@@ -98,11 +98,10 @@ class Dataset_Loader:
         print(f"Number of classes: {len(self.classes)}")
         print(f"Classes: {self.classes}")
 
-    def show_distribution_of_classes(self, subset_names):
+    def show_distribution_of_classes(self):
         """
         顯示資料集中各個類別的分佈情況。
         """
-        print("-"*10 + "Show distribution of classes" + "-"*10)  # 進度提示
         counts = [0] * len(self.classes)
         for txt in self.labels_path:
             if txt.exists():  # 檢查標記檔案是否存在
@@ -124,21 +123,17 @@ class Dataset_Loader:
         plt.ylabel("Count", fontsize=14)
         plt.xticks(rotation=45)
         plt.show()
-        print("-"*10 + "Show end" + "-"*10)  # 進度提示
 
-    def show_16_image_with_marked(self):
+    def show_image_with_marked(self, num_samples=16):
         """
         顯示16張圖片及其標籤。
         """
-        print("-"*10 + "Show images with marked" + "-"*10)  # 進度提示
-
-        num_samples = 16  # 顯示的圖片數量
         random_index = [
             random.randint(0, len(self.imgs_path) - 1) for _ in range(num_samples)
         ]  # 產生隨機索引值
 
         fig, axes = plt.subplots(
-            nrows=4, ncols=4, figsize=(10, 10), subplot_kw={"xticks": [], "yticks": []}
+            nrows=int(num_samples**0.5), ncols=int(num_samples**0.5), figsize=(10, 10), subplot_kw={"xticks": [], "yticks": []}
         )
 
         def generate_label_path(img_path):
@@ -193,7 +188,6 @@ class Dataset_Loader:
 
         plt.tight_layout()
         plt.show()
-        print("-"*10 + "Show end" + "-"*10)  # 進度提示
 
     def get_dataset_size(self):
         return len(self.imgs_path)
@@ -480,7 +474,8 @@ class Dataset_Loader:
         標準化圖片格式。
         """
         # 轉換成 BMP 格式。 （此舉可不做，但如此可以避免Yolo跳出警告）
-        self.img_convert_to_bmp(src_img_path, dest_img_path)
+        # self.img_convert_to_bmp(src_img_path, dest_img_path)
+        shutil.copyfile(src_img_path, dest_img_path)
 
     def standardize_label(self, src_label_path, dest_label_path):
         """
@@ -604,6 +599,7 @@ class Dataset_Loader:
         參數:
         - dest_data_dir: 配置文件將被存放的目標目錄路徑
         """
+        dest_data_dir = str(dest_data_dir).replace("\\", "/")
         # 配置文件內容，指定訓練集、驗證集、測試集的路徑，以及類別的數量和名稱
         yaml_content = f"""train: {dest_data_dir}/train_list.txt
 val: {dest_data_dir}/val_list.txt

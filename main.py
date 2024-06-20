@@ -3,13 +3,13 @@ from pathlib import Path
 import shutil
 from Dataset import Dataset
 
-dataset_directory = r".\data\test_dataset"    # 測試用
-# dataset_directory = r".\data\input_dataset"   # 輸入資料集
+dataset_directory = "data/dataset/test_dataset"    # 測試用
+# dataset_directory = "data/dataset/src_dataset"  # 輸入資料集
 classes = ("Penguin", "Kangaroo", "Rhino", "Jaguar", "Buffalo")
 dataset = Dataset.Dataset_Loader(dataset_dir=dataset_directory, classes=classes)
 
 # 指定目標目錄、子集名稱和各子集的百分比
-destination_dir = r".\data\zoo-animals\data"
+destination_dir = "data/dataset/zoo_dataset"  # 處理後的資料集目錄
 
 # 使用 pathlib 来处理路径
 dest_path = Path(destination_dir)
@@ -33,3 +33,5 @@ dataset.run(
     subset_names=subset_names,
     subset_percentages=subset_percentages,
 )
+
+# dataset.show_image_with_marked(num_samples=len(dataset.imgs_path))

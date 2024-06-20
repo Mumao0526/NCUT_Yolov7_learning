@@ -5,8 +5,9 @@ import random
 from pathlib import Path
 
 num_samples = 100  # 指定要取得的圖片數量
-dataset_dir = r".\data\input_dataset\src_dataset\zoo-animals\data\input_dataset"
-dest_dir_path = r".\data\src_dataset\test_dataset"
+dataset_dir = "./data/dataset/src_dataset"
+dest_dir_path = "./data/dataset/test_dataset"
+
 dataset_path = Path(dataset_dir)
 extensions = [
     "*.JPG",
