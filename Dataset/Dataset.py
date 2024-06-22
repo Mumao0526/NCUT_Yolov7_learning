@@ -52,6 +52,7 @@ class Dataset_Loader:
         dest_dir: str,
         subset_names: tuple,
         subset_percentages: tuple,
+        isShowChart=False,
     ):
         """
         將資料集轉換成YOLO格式，並分割成訓練集、驗證集和測試集，最後生成data-v7.yaml配置文件。
@@ -66,11 +67,12 @@ class Dataset_Loader:
         self.splite_dataset_to_dir(
             dest_images_path, dest_lists_path, subset_names, subset_percentages
         )
-        self.count_dataset(dest_labels_path, subset_names, show_plt=False)
+        self.count_dataset(dest_labels_path, subset_names, isShow=isShowChart)
         self.make_data_yaml(dest_dir)
 
-        self.show_distribution_of_classes()
-        self.show_image_with_marked()
+        self.show_distribution_of_classes(isShow=isShowChart)
+        if isShowChart:
+            self.show_image_with_marked()
 
     def get_pathslist(self, src_path, extensions):
         """
@@ -98,7 +100,7 @@ class Dataset_Loader:
         print(f"Number of classes: {len(self.classes)}")
         print(f"Classes: {self.classes}")
 
-    def show_distribution_of_classes(self):
+    def show_distribution_of_classes(self, isShow=False):
         """
         顯示資料集中各個類別的分佈情況。
         """
@@ -116,17 +118,18 @@ class Dataset_Loader:
         for i, cls in enumerate(self.classes):
             print(f"{cls}: {counts[i]}")
 
-        # 以plt.bar()繪製長條圖
-        sns.barplot(x=self.classes, y=counts, hue=self.classes, alpha=0.8, palette="rocket", legend=False)
-        plt.title("Distribution of Class in Image Dataset", fontsize=16)
-        plt.xlabel("Class", fontsize=14)
-        plt.ylabel("Count", fontsize=14)
-        plt.xticks(rotation=45)
-        plt.show()
+        if isShow:
+            # 以plt.bar()繪製長條圖
+            sns.barplot(x=self.classes, y=counts, hue=self.classes, alpha=0.8, palette="rocket", legend=False)
+            plt.title("Distribution of Class in Image Dataset", fontsize=16)
+            plt.xlabel("Class", fontsize=14)
+            plt.ylabel("Count", fontsize=14)
+            plt.xticks(rotation=45)
+            plt.show()
 
     def show_image_with_marked(self, num_samples=16):
         """
-        顯示16張圖片及其標籤。
+        顯示圖片及其標籤。
         """
         random_index = [
             random.randint(0, len(self.imgs_path) - 1) for _ in range(num_samples)
@@ -138,12 +141,12 @@ class Dataset_Loader:
 
         def generate_label_path(img_path):
             """
-            生成標記檔案的路徑，且適用於Windows、Linux作業環境。
+            生成標記檔案的路徑，且適用於Windows、Linux和Mac作業環境。
             """
             img_path = Path(img_path)
             parts = list(img_path.parts)
 
-            # 找到 'images' 的位置并替换为 'labels'
+            # 將 'images' 替換成 'labels'
             try:
                 index = parts.index("images")
                 parts[index] = "labels"
@@ -152,7 +155,6 @@ class Dataset_Loader:
                     "Error: 'images' not found in image path, cant find label file."
                 )
 
-            # 重新构建路径，并更改文件的后缀
             new_path = Path(*parts).with_suffix(".txt")
 
             return new_path
@@ -462,7 +464,7 @@ class Dataset_Loader:
 
             self.standardize_label(label_path, target_label_path)  # 轉換標籤文件格式
 
-            path_list += str(target_img_path) + "\n"
+            path_list += str(target_img_path).replace("\\", "/") + "\n"
             self.imgs_path[index_start] = target_img_path  # 更新圖片路徑
             index_start += 1  # 更新索引值
 
@@ -529,7 +531,7 @@ class Dataset_Loader:
             )
             subset_begin = subset_end
 
-    def count_dataset(self, src_labels_dir, subset_names, show_plt=True):
+    def count_dataset(self, src_labels_dir, subset_names, isShow=True):
         """
         統計指定目錄下各個子目錄（代表不同的子集）中的圖像數量及各類別的數量。
 
@@ -577,7 +579,7 @@ class Dataset_Loader:
         print("set: ", self.classes)  # 打印標題
         print(counts)  # 打印統計結果
 
-        if show_plt:
+        if isShow:
             # 以plt.bar()繪製長條圖
             for set_name, numbers in counts.items():
                 plt.figure(figsize=(10, 5))

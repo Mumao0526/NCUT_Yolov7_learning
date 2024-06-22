@@ -2,36 +2,40 @@ import os
 from pathlib import Path
 import shutil
 from Dataset import Dataset
+from configparser import ConfigParser
 
-dataset_directory = "data/dataset/test_dataset"    # 測試用
-# dataset_directory = "data/dataset/src_dataset"  # 輸入資料集
-classes = ("Penguin", "Kangaroo", "Rhino", "Jaguar", "Buffalo")
-dataset = Dataset.Dataset_Loader(dataset_dir=dataset_directory, classes=classes)
+config = ConfigParser()
+config.read("config.ini", encoding="utf-8")
 
-# 指定目標目錄、子集名稱和各子集的百分比
-destination_dir = "data/dataset/zoo_dataset"  # 處理後的資料集目錄
+# ------------------- 參數設定 -------------------
+src_dataset_folder = config.get("global", "src_dataset_folder")
+dest_dataset_folder = config.get("global", "dest_dataset_folder")
+class_list = config.get("global", "classList").strip("[]").replace('"', "").split(", ")
+subset_names = (
+    config.get("global", "subset_names").strip("[]").replace('"', "").split(", ")
+)
+subset_percentages = tuple(
+    map(int, config.get("global", "subset_percentages").strip("[]").split(", "))
+)
+is_show_chart = config.getboolean("global", "is_show_chart")
+# ----------------------------------------------
 
-# 使用 pathlib 来处理路径
-dest_path = Path(destination_dir)
-
-# 检查目标目录是否存在
+# 確保目錄下沒有檔案
+dest_path = Path(dest_dataset_folder)
 if dest_path.exists():
-    # 如果目标目录存在，删除目录下的所有文件和子目录
     for item in dest_path.iterdir():
         if item.is_dir():
-            shutil.rmtree(item)  # 删除目录
+            shutil.rmtree(item)  # 刪除資料夾
         else:
-            item.unlink()  # 删除文件
+            item.unlink()  # 刪除檔案
+os.makedirs(dest_dataset_folder, exist_ok=True)  # 建立資料夾
 
-os.makedirs(destination_dir, exist_ok=True)
-subset_names = ("train", "val", "test")
-subset_percentages = (80, 10, 10)  # 這表示訓練集80%，驗證集10%，測試集10%
-
+# 創建資料集物件
+dataset = Dataset.Dataset_Loader(dataset_dir=src_dataset_folder, classes=class_list)
 # 運行數據處理
 dataset.run(
-    dest_dir=destination_dir,
+    dest_dir=dest_dataset_folder,
     subset_names=subset_names,
     subset_percentages=subset_percentages,
+    isShowChart=is_show_chart,
 )
-
-# dataset.show_image_with_marked(num_samples=len(dataset.imgs_path))
