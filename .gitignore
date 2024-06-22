@@ -164,6 +164,7 @@ cython_debug/
 # Data Files
 data/
 temp_formu/
+temp_file_name.jpeg
 
 # Models Files
 *.pt

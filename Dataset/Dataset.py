@@ -94,16 +94,19 @@ class Dataset_Loader:
         """
         顯示資料集的基本信息，包括圖像數量、類別數量和類別名稱。
         """
+        print("-" * 10 + "Dataset Information" + "-" * 10)  # 進度提示
         print(f"Dataset path: {self.dataset_path}")
         print(f"Number of images: {self.get_dataset_size()}")
         print(f"Number of labels: {len(self.labels_path)}")
         print(f"Number of classes: {len(self.classes)}")
         print(f"Classes: {self.classes}")
+        print("-" * 39 + "\n")  # 進度提示
 
     def show_distribution_of_classes(self, isShow=False):
         """
         顯示資料集中各個類別的分佈情況。
         """
+        print("-" * 10 + "Distribution of Classes" + "-" * 10)  # 進度提示
         counts = [0] * len(self.classes)
         for txt in self.labels_path:
             if txt.exists():  # 檢查標記檔案是否存在
@@ -120,12 +123,20 @@ class Dataset_Loader:
 
         if isShow:
             # 以plt.bar()繪製長條圖
-            sns.barplot(x=self.classes, y=counts, hue=self.classes, alpha=0.8, palette="rocket", legend=False)
+            sns.barplot(
+                x=self.classes,
+                y=counts,
+                hue=self.classes,
+                alpha=0.8,
+                palette="rocket",
+                legend=False,
+            )
             plt.title("Distribution of Class in Image Dataset", fontsize=16)
             plt.xlabel("Class", fontsize=14)
             plt.ylabel("Count", fontsize=14)
             plt.xticks(rotation=45)
             plt.show()
+        print("-" * 10 + "End of Distribution of Classes" + "-" * 10 + "\n")  # 進度提示
 
     def show_image_with_marked(self, num_samples=16):
         """
@@ -136,7 +147,10 @@ class Dataset_Loader:
         ]  # 產生隨機索引值
 
         fig, axes = plt.subplots(
-            nrows=int(num_samples**0.5), ncols=int(num_samples**0.5), figsize=(10, 10), subplot_kw={"xticks": [], "yticks": []}
+            nrows=int(num_samples**0.5),
+            ncols=int(num_samples**0.5),
+            figsize=(10, 10),
+            subplot_kw={"xticks": [], "yticks": []},
         )
 
         def generate_label_path(img_path):
@@ -294,6 +308,7 @@ class Dataset_Loader:
                 )  # 轉成Yolo的格式
                 out += f"{classes_index} {x} {y} {w} {h}\n"
 
+        os.makedirs(Path(yolo_file).parent, exist_ok=True)
         with open(yolo_file, "a") as txt:
             txt.write(out)
 
@@ -387,11 +402,11 @@ class Dataset_Loader:
         - src_img_path: 原始圖像文件的路徑
         - dest_img_path: 轉換後圖像文件的路徑
         """
+        os.makedirs(Path(dest_img_path).parent, exist_ok=True)  # 確認並建立目標資料夾
         file_extension = Path(src_img_path).suffix
         if file_extension.lower() == ".bmp":
             shutil.copyfile(src_img_path, dest_img_path)  # 複製到指定路徑
         else:
-            # 若非 BMP 格式，需讀取圖像並儲存為 BMP 格式。
             image = cv2.imread(str(src_img_path))
 
             if image is None:
@@ -406,7 +421,7 @@ class Dataset_Loader:
         dest_lists_dir: str,
         subset_name: str,
         subset_images: list,
-        index_start: int,
+        paths_index: int,
     ):
         """
         將指定的圖像及其標籤文件從來源目錄複製到指定的子集目錄中，並記錄這些圖像的路徑。
@@ -445,43 +460,51 @@ class Dataset_Loader:
             )
 
             # -- 複製圖片 --
-            # 若目標資料夾不存在，則建立目標資料夾
-            if not Path(target_img_dir).exists():
-                os.makedirs(target_img_dir)
-            if not Path(target_label_dir).exists():
-                os.makedirs(target_label_dir)
-
             if not Path(img_path).exists():  # 檢查圖片是否存在
                 print(f"Error: Failed to read image {img_path} for copying.")
+                paths_index += 1  # 更新索引值
                 continue
             if not Path(label_path).exists():  # 檢查標籤是否存在
                 print(f"Error: Failed to read label file {label_path} for copying.")
+                paths_index += 1  # 更新索引值
                 continue
 
-            self.standardize_img(
-                img_path, target_img_path
-            )  # 轉換成 BMP 格式。 （此舉可不做，但如此可以避免Yolo跳出警告）
+            if self.convert_img(img_path, target_img_path):  # 轉換圖片
+                self.convert_label(label_path, target_label_path)  # 轉換標籤文件格式
 
-            self.standardize_label(label_path, target_label_path)  # 轉換標籤文件格式
+                path_list += str(target_img_path).replace("\\", "/") + "\n"
+                self.imgs_path[paths_index] = target_img_path  # 更新圖片路徑
+            else:
+                del self.imgs_path[paths_index]  # 移除無法讀取的圖片
+                paths_index -= 1  # 更新索引值
 
-            path_list += str(target_img_path).replace("\\", "/") + "\n"
-            self.imgs_path[index_start] = target_img_path  # 更新圖片路徑
-            index_start += 1  # 更新索引值
+                label_index = self.labels_path.index(label_path)
+                del self.labels_path[label_index]  # 移除對應的標籤
+
+            paths_index += 1  # 更新索引值
 
         with open(f"{dest_lists_dir}/{subset_name}_list.txt", "a") as txt:
             txt.write(path_list)
 
-    def standardize_img(self, src_img_path, dest_img_path):
+    def convert_img(self, src_img_path, dest_img_path) -> bool:
         """
-        標準化圖片格式。
+        轉換圖片。
         """
-        # 轉換成 BMP 格式。 （此舉可不做，但如此可以避免Yolo跳出警告）
-        # self.img_convert_to_bmp(src_img_path, dest_img_path)
-        shutil.copyfile(src_img_path, dest_img_path)
+        try:
+            # 讀取圖片測試
+            img = cv2.imread(str(src_img_path))
+            test = img.shape
+        except:
+            print(f"Error: Failed to read image {src_img_path} for converting.")
+            return False  # 無法讀取圖片，則退出
 
-    def standardize_label(self, src_label_path, dest_label_path):
+        # 轉換成 BMP 格式。 （此舉可不做，但如此可以避免Yolo跳出警告）
+        self.img_convert_to_bmp(src_img_path, dest_img_path)
+        return True
+
+    def convert_label(self, src_label_path, dest_label_path):
         """
-        標準化標籤格式。
+        轉換標籤格式。
         """
         # 轉換VOC標籤文件格式成YOLO格式
         self.label_file_voc2yolo(src_label_path, dest_label_path)
@@ -502,7 +525,7 @@ class Dataset_Loader:
         - subset_names: 分割子集的名稱組成的tuple
         - subset_percentages: 每個分割子集分配的圖像百分比組成的tuple
         """
-        print("Splitting dataset into subsets ...")  # 進度提示
+        print("-" * 10 + "Split dataset" + "-" * 10)  # 進度提示
 
         if not os.path.exists(dset_images_dir):
             os.makedirs(dset_images_dir)
@@ -527,9 +550,10 @@ class Dataset_Loader:
                 dest_lists_dir,
                 subset_name,
                 subset_images=self.imgs_path[subset_begin:subset_end],
-                index_start=subset_begin,
+                paths_index=subset_begin,
             )
             subset_begin = subset_end
+        print("-" * 10 + "End of Split dataset" + "-" * 10 + "\n")  # 進度提示
 
     def count_dataset(self, src_labels_dir, subset_names, isShow=True):
         """
@@ -541,7 +565,7 @@ class Dataset_Loader:
         輸出:
         - 打印出每個子集的圖像總數以及每個類別的數量
         """
-        print("-"*10 + "Count dataset" + "-"*10)  # 進度提示
+        print("-" * 10 + "Count dataset" + "-" * 10)  # 進度提示
 
         extensions = ["*.txt", "*.TXT"]
         self.labels_path = self.get_pathslist(
@@ -564,7 +588,7 @@ class Dataset_Loader:
                 continue
 
             if set_name not in counts:  # 初始化子集的計數
-                counts[set_name] = [0] * (len(self.classes) + 1)
+                counts[set_name] = [0] * (len(self.classes) + 2)
 
             counts[set_name][0] += 1  # 為該子集的圖像數增加一
 
@@ -573,25 +597,35 @@ class Dataset_Loader:
                 continue
             with open(txt, "r") as file:
                 for line in file.readlines():
+                    counts[set_name][1] += 1  # 為該子集的物件數增加一
                     cls = int(line.split(" ")[0])  # 從每一行中讀取類別編號
-                    counts[set_name][cls + 1] += 1  # 根據類別編號更新計數
+                    counts[set_name][cls + 2] += 1  # 根據類別編號更新計數
 
-        print("set: ", self.classes)  # 打印標題
+        print("set: images, objects, ", self.classes)  # 打印標題
         print(counts)  # 打印統計結果
 
         if isShow:
             # 以plt.bar()繪製長條圖
             for set_name, numbers in counts.items():
                 plt.figure(figsize=(10, 5))
-                categories = [f"{cls}" for i, cls in enumerate(self.classes, 1) if i > 0]
+                categories = [
+                    f"{cls}" for i, cls in enumerate(self.classes, 1) if i > 0
+                ]
                 values = numbers[1:]  # Skip the total count
-                sns.barplot(x=categories, y=values, hue=categories, alpha=0.8, palette="rocket", legend=False)
+                sns.barplot(
+                    x=categories,
+                    y=values,
+                    hue=categories,
+                    alpha=0.8,
+                    palette="rocket",
+                    legend=False,
+                )
                 plt.title(f"Data distribution in {str(set_name).upper()}")
                 plt.ylabel("Counts")
                 plt.xlabel("Classes")
                 plt.show()
 
-        print("-"*10 + "Count end" + "-"*10)  # 進度提示
+        print("-" * 10 + "Count end" + "-" * 10 + "\n")  # 進度提示
 
     def make_data_yaml(self, dest_data_dir: str):
         """
@@ -614,3 +648,42 @@ names: {list(self.classes)}
         # 寫入文件
         with open(f"{dest_data_dir}/data-v7.yaml", "w") as file:
             file.write(yaml_content)
+
+    def show_elv_sample(self):
+        '''
+        顯示圖片的ELA效果
+
+        Code is from: https://www.kaggle.com/code/vencerlanz09/sea-animals-classification-using-efficeintnetb7
+        '''
+        p = random.choice(self.imgs_path)
+        orig = cv2.imread(str(p))
+        orig = cv2.cvtColor(orig, cv2.COLOR_BGR2RGB) / 255.0
+        init_val = 100
+        columns = 3
+        rows = 3
+
+        def compute_ela_cv(path, quality):
+            temp_filename = "temp_file_name.jpeg"
+            SCALE = 15
+            orig_img = cv2.imread(path)
+            orig_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2RGB)
+
+            cv2.imwrite(temp_filename, orig_img, [cv2.IMWRITE_JPEG_QUALITY, quality])
+
+            # read compressed image
+            compressed_img = cv2.imread(temp_filename)
+
+            # get absolute difference between img1 and img2 and multiply by scale
+            diff = SCALE * cv2.absdiff(orig_img, compressed_img)
+            return diff
+
+        fig = plt.figure(figsize=(15, 10))
+        for i in range(1, columns * rows + 1):
+            quality = init_val - (i - 1) * 8
+            img = compute_ela_cv(path=p, quality=quality)
+            if i == 1:
+                img = orig.copy()
+            ax = fig.add_subplot(rows, columns, i)
+            ax.title.set_text(f"quality: {quality}")
+            plt.imshow(img)
+        plt.show()
